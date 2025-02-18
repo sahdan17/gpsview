@@ -3,21 +3,109 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, defineProps, nextTick } from "vue"
+import { onMounted, ref, watch, defineProps, defineEmits } from "vue"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { gsap } from "gsap"
 import type { Map as LeafletMapType, TileLayer, Marker, Polygon, LatLngTuple } from "leaflet"
 
 const props = defineProps<{
-    markers: LatLngTuple[]
+    markers: { id: number; position: LatLngTuple }[]
     polygons?: LatLngTuple[][]
 }>()
+
+const emit = defineEmits(["marker-click"])
 
 const map:any = ref<LeafletMapType | null>(null)
 const tileLayer = ref<TileLayer | null>(null)
 const markersRef = ref<Map<number, Marker>>(new Map())
 const polygonsRef = ref<Polygon[]>([])
+const selectedMarkerId = ref<number | null>(null)
+const userHasMovedMap = ref(false)
+const lastCenter:any = ref<LatLngTuple | null>(null)
+const isAutoMoving = ref(false)
+
+const updateMarkers = () => {
+    if (!map.value) return
+
+    console.log("Menjalankan updateMarkers, jumlah marker:", props.markers.length)
+
+    const newMarkersMap = new Map<number, Marker>()
+
+    props.markers.forEach(({ id, position }) => {
+        if (markersRef.value.has(id)) {
+            const existingMarker:any = markersRef.value.get(id)!
+            animateMarker(existingMarker, position)
+            newMarkersMap.set(id, existingMarker)
+        } else {
+            const newMarker = L.marker(position, { draggable: false })
+                .addTo(map.value!)
+                .on("click", () => handleMarkerClick(id))
+            
+            newMarkersMap.set(id, newMarker)
+        }
+    })
+
+    markersRef.value.forEach((marker, id) => {
+        if (!newMarkersMap.has(id)) {
+            map.value!.removeLayer(marker)
+        }
+    })
+
+    markersRef.value = newMarkersMap
+}
+
+const animateMarker = (marker: Marker, newLatLng: LatLngTuple) => {
+    const startLatLng = marker.getLatLng()
+
+    gsap.to(startLatLng, {
+        lat: newLatLng[0],
+        lng: newLatLng[1],
+        duration: 1,
+        ease: "power2.out",
+        onUpdate: () => {
+            marker.setLatLng([startLatLng.lat, startLatLng.lng])
+        }
+    })
+}
+
+watch(() => props.markers, () => updateMarkers(), { immediate: true, deep: true })
+
+const handleMarkerClick = (id: number) => {
+    console.log("Marker diklik, ID:", id)
+    selectedMarkerId.value = id
+    userHasMovedMap.value = false
+
+    if (map.value && markersRef.value.has(id)) {
+        const marker = markersRef.value.get(id)!
+        const newLatLng = marker.getLatLng()
+        
+        isAutoMoving.value = true
+        map.value.flyTo([newLatLng.lat, newLatLng.lng], 18, { duration: 1 })
+    }
+
+    emit("marker-click", id)
+}
+
+watch(() => props.markers, (newMarkers) => {
+    console.log("Markers diperbarui:", newMarkers.length)
+
+    newMarkers.forEach(({ id, position }) => {
+        if (markersRef.value.has(id)) {
+            const marker:any = markersRef.value.get(id)!
+            animateMarker(marker, position)
+        }
+    })
+
+    if (!userHasMovedMap.value && selectedMarkerId.value !== null && map.value) {
+        const selectedMarker = newMarkers.find(m => m.id === selectedMarkerId.value)
+        if (selectedMarker) {
+            console.log("Memindahkan peta ke marker ID:", selectedMarkerId.value)
+            isAutoMoving.value = true
+            map.value!.flyTo(selectedMarker.position, 18, { duration: 1 })
+        }
+    }
+}, { deep: true })
 
 onMounted(() => {
     const mapElement = document.getElementById("map")
@@ -33,61 +121,32 @@ onMounted(() => {
     tileLayer.value.addTo(map.value)
 
     updateMarkers()
-    updatePolygons()
+
+    lastCenter.value = map.value.getCenter()
+
+    map.value.on("movestart", () => {
+        lastCenter.value = map.value!.getCenter()
+    })
+
+    map.value.on("moveend", () => {
+        if (isAutoMoving.value) {
+            isAutoMoving.value = false
+            return
+        }
+
+        const newCenter = map.value!.getCenter()
+        const movedDistance = Math.sqrt(
+            Math.pow(newCenter.lat - lastCenter.value!.lat, 2) +
+            Math.pow(newCenter.lng - lastCenter.value!.lng, 2)
+        )
+
+        if (movedDistance > 0.0001) {
+            console.log("User benar-benar menggeser peta, melepas fokus.")
+            userHasMovedMap.value = true
+            selectedMarkerId.value = null
+        }
+    })
 })
-
-const updateMarkers = () => {
-    if (!map.value) return
-
-    const newMarkersMap = new Map<number, Marker>()
-
-    props.markers.forEach((markerPos, index) => {
-        if (markersRef.value.has(index)) {
-            const existingMarker:any = markersRef.value.get(index)!
-            animateMarker(existingMarker, markerPos)
-            newMarkersMap.set(index, existingMarker)
-        } else {
-            const newMarker = L.marker(markerPos, { draggable: false }).addTo(map.value!)
-            newMarkersMap.set(index, newMarker)
-        }
-    })
-
-    markersRef.value.forEach((marker, index) => {
-        if (!newMarkersMap.has(index)) {
-            map.value!.removeLayer(marker)
-        }
-    })
-
-    markersRef.value = newMarkersMap
-}
-
-const animateMarker = (marker: Marker, newLatLng: LatLngTuple) => {
-    const startLatLng = marker.getLatLng()
-    gsap.to(startLatLng, {
-        lat: newLatLng[0],
-        lng: newLatLng[1],
-        duration: 0.5,
-        ease: "power2.out",
-        onUpdate: () => {
-            marker.setLatLng([startLatLng.lat, startLatLng.lng])
-        }
-    })
-}
-
-const updatePolygons = () => {
-    if (!map.value) return
-
-    polygonsRef.value.forEach((polygon) => map.value!.removeLayer(polygon))
-    polygonsRef.value = []
-
-    props.polygons?.forEach((polygonCoords) => {
-        const polygon = L.polygon(polygonCoords, { color: "blue" }).addTo(map.value!)
-        polygonsRef.value.push(polygon)
-    })
-}
-
-watch(() => props.markers, updateMarkers, { deep: true })
-watch(() => props.polygons, updatePolygons, { deep: true })
 </script>
 
 <style scoped>
