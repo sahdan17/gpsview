@@ -114,7 +114,7 @@ body {
   backdrop-filter: blur(10px);
   margin-top: 1vh;
   margin-left: 1vh;
-  z-index: 10;
+  z-index: 3;
 }
 
 #sidebar.shrink {
@@ -258,7 +258,7 @@ li:hover #btnUp {
   opacity: 0;
 }
 
-/* #content {
+#content {
   padding-left: 335px;
   transition: padding-left .25s ease-in-out;
   overflow-x: hidden;
@@ -267,7 +267,7 @@ li:hover #btnUp {
 
 #sidebar.shrink + #content {
   padding-left: 115px;
-} */
+}
 
 @media (max-width: 500px) {
   #sidebar.shrink {

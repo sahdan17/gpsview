@@ -18,13 +18,14 @@ const fetchLatestRecords = async () => {
             return
         }
 
-        const newMarkers: { id: number; position: LatLngTuple }[] = []
+        const newMarkers: { id: number; position: LatLngTuple; rotation: number }[] = []
 
         result.forEach((item: any) => {
             if (item.idDevice && item.lat && item.long) {
                 newMarkers.push({
-                    id: item.idDevice, // Gunakan ID dari API sebagai ID marker
-                    position: [parseFloat(item.lat), parseFloat(item.long)] // Konversi lat & long ke number
+                    id: item.idDevice,
+                    position: [parseFloat(item.lat), parseFloat(item.long)],
+                    rotation: item.dir
                 })
             }
         })
@@ -42,7 +43,7 @@ const handleMarkerClick = (id: number) => {
 
 onMounted(() => {
     fetchLatestRecords()
-    interval = setInterval(fetchLatestRecords, 5000) // Update setiap 5 detik
+    interval = setInterval(fetchLatestRecords, 3000)
 })
 
 onUnmounted(() => {
@@ -54,11 +55,32 @@ onUnmounted(() => {
     <div class="dashboard-container">
         <LeafletMap :markers="markers" @marker-click="handleMarkerClick" />
     </div>
+    <!-- <div class="content">
+        <div class="navbar">
+            <p></p>
+        </div>
+    </div> -->
 </template>
 
 <style scoped>
 .dashboard-container {
-    padding: 20px;
     text-align: center;
+    z-index: -2;
+}
+
+.content {
+    position: relative;
+    z-index: 50;
+    margin-right: 20px;
+    margin-left: 10px;
+    margin-top: 20px;
+}
+
+.navbar {
+    border: 3px solid rgba(18, 51, 110, .6);
+    border-radius: 25px;
+    background-color: rgba(18, 51, 115, .8);
+    color: white;
+    padding-left: 20px;
 }
 </style>
