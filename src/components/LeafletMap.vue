@@ -4,13 +4,43 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, defineProps, defineEmits } from "vue"
-import L from "leaflet"
+import L, { icon } from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { gsap } from "gsap"
 import type { Map as LeafletMapType, TileLayer, Marker, Polygon, LatLngTuple } from "leaflet"
 
 const props = defineProps<{
-    markers: { id: number; position: LatLngTuple; rotation?: number }[]
+    markers: { id: number;
+        position: LatLngTuple;
+        record?: {
+            timestamp: string;
+            lat: string;
+            long: string;
+            speed: number;
+            sat: number;
+            dir: number;
+            status: string;
+            idDevice: number;
+            vehicle: {
+                id: number;
+                nopol: string;
+                kode: string;
+                cat: string;
+            };
+        },
+        driveSession?: {
+            start: string;
+            stop: string;
+            id: number;
+            vehicle_id: number;
+            driver_id: number;
+            driver: {
+                id: number;
+                driver_name: string;
+                rfid: string;
+                no_wa: string;
+            }
+        } }[]
     polygons?: LatLngTuple[][]
 }>()
 
@@ -39,22 +69,53 @@ const createCustomIcon = (rotation: number = 90) => {
 const updateMarkers = () => {
     if (!map.value) return
 
-    console.log("Menjalankan updateMarkers, jumlah marker:", props.markers.length)
-
     const newMarkersMap = new Map<number, Marker>()
 
-    props.markers.forEach(({ id, position, rotation = 90 }) => {
+    props.markers.forEach(({ id, position, record, driveSession }) => {
+        console.log(driveSession);
+        
+        let iconColor = ''
+
+        if (record?.status == 'start') {
+            iconColor = 'green'
+        } else if (record?.status == 'idle') {
+            iconColor = 'yellow'
+        } else {
+            iconColor = 'red'
+        }
+
+        const iconSVG = 
+            `<div style="display: flex; align-items: center; justify-content: center; margin-top: 5px;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" 
+                    style="width: 15px; height: 15px; fill: ${iconColor}; margin-right: 5px;">
+                    <path d="M0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm320 96c0-15.9-5.8-30.4-15.3-41.6l76.6-147.4c6.1-11.8 1.5-26.3-10.2-32.4s-26.2-1.5-32.4 10.2L262.1 288.3c-2-.2-4-.3-6.1-.3c-35.3 0-64 28.7-64 64s28.7 64 64 64s64-28.7 64-64z"/>
+                </svg>
+                <span>${record?.speed} km/h</span>
+            </div>`
+
+        const tooltipHTML = `
+            <div class="custom-tooltip" style="width: 120px; text-align: center;">
+                <strong>${record?.vehicle.nopol}</strong> <br>
+                ${record?.vehicle.kode} <br>
+                ${driveSession?.driver.driver_name} <br>
+                ${driveSession?.driver.no_wa} <br>
+                ${iconSVG}
+            </div>
+        `
+
         if (markersRef.value.has(id)) {
             const existingMarker:any = markersRef.value.get(id)!
             animateMarker(existingMarker, position)
-            existingMarker.setIcon(createCustomIcon(rotation))
+            existingMarker.setIcon(createCustomIcon(record?.dir))
             newMarkersMap.set(id, existingMarker)
         } else {
             const newMarker = L.marker(position, { 
-                icon: createCustomIcon(rotation),
+                icon: createCustomIcon(record?.dir),
                 draggable: false
             })
                 .addTo(map.value!)
+                .bindTooltip(tooltipHTML, { permanent: false, direction: "top", offset: [0,-30] }
+                )
                 .on("click", () => handleMarkerClick(id))
             
             newMarkersMap.set(id, newMarker)
@@ -87,7 +148,6 @@ const animateMarker = (marker: Marker, newLatLng: LatLngTuple) => {
 watch(() => props.markers, () => updateMarkers(), { immediate: true, deep: true })
 
 const handleMarkerClick = (id: number) => {
-    console.log("Marker diklik, ID:", id)
     selectedMarkerId.value = id
     userHasMovedMap.value = false
 
@@ -103,20 +163,17 @@ const handleMarkerClick = (id: number) => {
 }
 
 watch(() => props.markers, (newMarkers) => {
-    console.log("Markers diperbarui:", newMarkers.length)
-
-    newMarkers.forEach(({ id, position, rotation }) => {
+    newMarkers.forEach(({ id, position, record }) => {
         if (markersRef.value.has(id)) {
             const marker:any = markersRef.value.get(id)!
             animateMarker(marker, position)
-            marker.setIcon(createCustomIcon(rotation || 90))
+            marker.setIcon(createCustomIcon(record?.dir || 90))
         }
     })
 
     if (!userHasMovedMap.value && selectedMarkerId.value !== null && map.value) {
         const selectedMarker = newMarkers.find(m => m.id === selectedMarkerId.value)
         if (selectedMarker) {
-            console.log("Memindahkan peta ke marker ID:", selectedMarkerId.value)
             isAutoMoving.value = true
             map.value!.setView(selectedMarker.position, 18)
         }
@@ -157,7 +214,6 @@ onMounted(() => {
         )
 
         if (movedDistance > 0.0001) {
-            console.log("User benar-benar menggeser peta, melepas fokus.")
             userHasMovedMap.value = true
             selectedMarkerId.value = null
         }

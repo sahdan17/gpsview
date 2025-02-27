@@ -75,34 +75,38 @@ const intervalLastRecord = () => {
 }
 
 const fetchLatestRecords = async () => {
-    try {
-        const result = await getLatestRecordById({ ids:selectedVehicles.value })
-
-        if (!result || !Array.isArray(result)) {
-            console.error("Data API tidak valid:", result)
-            return
-        }
-
-        const newMarkers: { id: number; position: LatLngTuple; rotation: number }[] = []
-
-        result.forEach((item: any) => {
-            if (item.idDevice && item.lat && item.long) {
-                newMarkers.push({
-                    id: item.idDevice,
-                    position: [parseFloat(item.lat), parseFloat(item.long)],
-                    rotation: item.dir
-                })
-            }
-        })
-
-        markers.value = newMarkers
-    } catch (err) {
-        console.error("Error fetching latest record:", err)
+    await getLatestRecordById({ ids:selectedVehicles.value }).then((result: any) => {
+        if (!result.records || !Array.isArray(result.records)) {
+        console.error("Data API tidak valid:", result.records)
+        return
     }
+
+    const newMarkers: { id: number; position: LatLngTuple; record: Object, driveSession?: Object }[] = []
+
+    result.records.forEach((item: any) => {
+        if (item.idDevice && item.lat && item.long) {
+            const matchedDriveSession = result.driveSession?.find(
+                (session: any) => session.vehicle_id === item.vehicle.id
+            );
+            console.log("drive dashboard:",matchedDriveSession);
+            
+
+            newMarkers.push({
+                id: item.idDevice,
+                position: [parseFloat(item.lat), parseFloat(item.long)],
+                record: item,
+                driveSession: matchedDriveSession || null
+            })
+        }
+    })
+
+    markers.value = newMarkers
+    }).catch((error) => {
+        console.error("Error fetching latest record:", error)
+    })
 }
 
 const handleMarkerClick = (id: number) => {
-    console.log("Marker dengan ID diklik:", id)
     selectedMarkerId.value = id
 }
 
