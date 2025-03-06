@@ -4,6 +4,7 @@ const latestRecord = 'https://apigps.findingoillosses.com/api/latestRecords'
 const vehicle = 'https://apigps.findingoillosses.com/api/getVehicle'
 const latestRecordById = 'https://apigps.findingoillosses.com/api/getLatestRecordsById'
 const vehicleByCat = 'https://apigps.findingoillosses.com/api/getVehicleByCat'
+const history = 'https://apigps.findingoillosses.com/api/history'
 
 export const getLatestRecord = async () => {
     return new Promise(async (resolve, reject) => {
@@ -45,6 +46,18 @@ export const getVehicleByCat = async (request: any) => {
     return new Promise(async (resolve, reject) => {
         try {
             const response = await axios.post(vehicleByCat, request)
+            resolve(response.data)
+        } catch (error) {
+            console.error('Error fetching latest record:', error)
+            reject(error)
+        }
+    })
+}
+
+export const getHistory = async (request: any) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const response = await axios.post(history, request)
             resolve(response.data)
         } catch (error) {
             console.error('Error fetching latest record:', error)

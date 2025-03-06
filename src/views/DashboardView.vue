@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted,watch } from "vue"
 import LeafletMap from "@/components/LeafletMap.vue"
 import type { LatLngTuple } from "leaflet"
-import { getLatestRecord, getVehicle, getLatestRecordById } from '@/services/apiService'
+import { getVehicle, getLatestRecordById } from '@/services/apiService'
 
 const markers = ref<{ id: number; position: LatLngTuple }[]>([])
 const selectedMarkerId = ref<number | null>(null)
@@ -87,9 +87,7 @@ const fetchLatestRecords = async () => {
         if (item.idDevice && item.lat && item.long) {
             const matchedDriveSession = result.driveSession?.find(
                 (session: any) => session.vehicle_id === item.vehicle.id
-            );
-            console.log("drive dashboard:",matchedDriveSession);
-            
+            );            
 
             newMarkers.push({
                 id: item.idDevice,
