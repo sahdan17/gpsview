@@ -7,7 +7,7 @@ import { onMounted, ref, watch, defineProps, defineEmits } from "vue"
 import L, { icon } from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { gsap } from "gsap"
-import type { Map as LeafletMapType, TileLayer, Marker, Polygon, LatLngTuple } from "leaflet"
+import type { Map as LeafletMapType, TileLayer, Marker, LatLngTuple } from "leaflet"
 import dayjs from 'dayjs'
 import 'dayjs/locale/id'
 import { useRouter } from 'vue-router'
@@ -44,7 +44,7 @@ const props = defineProps<{
                 no_wa: string;
             }
         } }[]
-    polygons?: LatLngTuple[][]
+    polygons?: Array<{ lat: number, lng: number, timestamp: string, speed: number, direction: number, status: string }>
 }>()
 
 const emit = defineEmits(["marker-click"])
@@ -52,7 +52,6 @@ const emit = defineEmits(["marker-click"])
 const map:any = ref<LeafletMapType | null>(null)
 const tileLayer = ref<TileLayer | null>(null)
 const markersRef = ref<Map<number, Marker>>(new Map())
-const polygonsRef = ref<Polygon[]>([])
 const selectedMarkerId = ref<number | null>(null)
 const userHasMovedMap = ref(false)
 const lastCenter:any = ref<LatLngTuple | null>(null)
