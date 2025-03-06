@@ -13,7 +13,7 @@ const fetchHistory = async () => {
     try {
         const result = await getHistory({
             idDevice: id,
-            date: "2025-03-06"
+            date: "2025-03-05"
         })
 
         if (!result || !Array.isArray(result)) {
